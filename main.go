@@ -75,7 +75,6 @@ func main() {
 				bot.SendMessage(ctx, tu.Message(tu.ID(chatID), msg))
 				continue
 			}
-
 			// 📥 Ответ в личке
 			if chat.Type == "private" {
 				button := tu.InlineKeyboard(
@@ -84,8 +83,9 @@ func main() {
 							WithURL("https://t.me/qoltyrauyn_go_bot?startgroup=true"),
 					),
 				)
+				messageText := "Бұл ойын тек топта ойналады. Мені топқа қосыңыз👇\n\nҰсыныстар бойынша @zhanasbay"
 				bot.SendMessage(ctx,
-					tu.Message(tu.ID(chatID), "Бұл ойын тек топта ойналады. Мені топқа қосыңыз👇").
+					tu.Message(tu.ID(chatID), messageText).
 						WithReplyMarkup(button),
 				)
 				continue
