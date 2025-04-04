@@ -12,18 +12,28 @@ import (
 	tu "github.com/mymmrac/telego/telegoutil"
 )
 
-// Глобальные переменные
-var currentWord string
-var wordGuesserID int64
-var wordTime time.Time
-var hostID int64
+// 👥 Структура состояния игры на каждый чат
+type GameState struct {
+	CurrentWord   string
+	HostID        int64
+	WordGuesserID int64
+	WordTime      time.Time
+}
+
+// 🌍 Глобальная карта: ключ — chatID, значение — GameState
+var games = make(map[int64]*GameState)
+
+// 🎯 Получаем или создаём состояние игры для текущего чата
+func getGame(chatID int64) *GameState {
+	if game, ok := games[chatID]; ok {
+		return game
+	}
+	games[chatID] = &GameState{}
+	return games[chatID]
+}
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("❌ Failed to load .env file")
-	}
-
+	_ = godotenv.Load()
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {
 		log.Fatal("❌ TELEGRAM_BOT_TOKEN is not set")
@@ -48,9 +58,10 @@ func main() {
 		if update.Message != nil {
 			text := update.Message.Text
 			chat := update.Message.Chat
-			chatID := tu.ID(chat.ID)
+			chatID := chat.ID
+			game := getGame(chatID)
 
-			// 💬 Ответ в личке
+			// 🔒 Если пишут в личку — предлагаем добавить бота в чат
 			if chat.Type == "private" {
 				button := tu.InlineKeyboard(
 					tu.InlineKeyboardRow(
@@ -59,13 +70,13 @@ func main() {
 					),
 				)
 				bot.SendMessage(ctx,
-					tu.Message(chatID, "Бұл ойын тек топта ойналады. Мені топқа қосыңыз👇").
+					tu.Message(tu.ID(chatID), "Бұл ойын тек топта ойналады. Мені топқа қосыңыз👇").
 						WithReplyMarkup(button),
 				)
 				continue
 			}
 
-			// 🚀 Запуск
+			// 🚀 Команда /start или "Баста" — начинаем игру
 			if text == "/start" || text == "Баста" {
 				keyboard := tu.InlineKeyboard(
 					tu.InlineKeyboardRow(
@@ -74,25 +85,25 @@ func main() {
 					),
 				)
 				bot.SendMessage(ctx,
-					tu.Message(chatID, "👋 Cәлем, балапан! Обед іштің бе? Кел, ойнайық").
+					tu.Message(tu.ID(chatID), "👋 Cәлем, балапан! Обед іштің бе? Кел, ойнайық").
 						WithReplyMarkup(keyboard),
 				)
 				continue
 			}
 
-			// ✅ Проверка ответа
-			if currentWord != "" && strings.EqualFold(text, currentWord) {
+			// ✅ Проверка правильного ответа
+			if game.CurrentWord != "" && strings.EqualFold(text, game.CurrentWord) {
 				sender := update.Message.From
 
 				// ❌ Ведущий не может быть победителем
-				if sender.ID == hostID {
+				if sender.ID == game.HostID {
 					continue
 				}
 
-				currentWord = ""
-				wordGuesserID = sender.ID
-				wordTime = time.Now()
-				hostID = sender.ID
+				game.CurrentWord = ""
+				game.WordGuesserID = sender.ID
+				game.WordTime = time.Now()
+				game.HostID = sender.ID // Победитель — новый ведущий
 
 				msg := "🎉 Жеңімпаз: @" + sender.Username + "\nДұрыс жауап: *" + text + "*"
 
@@ -103,79 +114,83 @@ func main() {
 				)
 
 				bot.SendMessage(ctx,
-					tu.Message(chatID, msg).
+					tu.Message(tu.ID(chatID), msg).
 						WithParseMode(telego.ModeMarkdown).
 						WithReplyMarkup(keyboard),
 				)
 			}
 		}
 
+		// 🎮 Обработка нажатий на кнопки
 		if update.CallbackQuery != nil {
 			query := update.CallbackQuery
 			data := query.Data
 			userID := query.From.ID
 			ctxUser := tu.ID(userID)
 
-			log.Printf("User @%s clicked: %s", query.From.Username, data)
+			chatID := query.Message.GetChat().ID
+			game := getGame(chatID)
 
 			switch data {
 
 			case "see_word":
-				if hostID == 0 {
-					hostID = query.From.ID
+				if game.HostID == 0 {
+					game.HostID = userID
 				}
-				if query.From.ID != hostID {
+				if userID != game.HostID {
 					bot.SendMessage(ctx, tu.Message(ctxUser, "⛔ Тек жасырушы ғана бұл батырманы баса алады!"))
 					break
 				}
 
-				currentWord = getRandomWord(words)
-				wordGuesserID = 0
-				wordTime = time.Now()
+				game.CurrentWord = getRandomWord(words)
+				game.WordGuesserID = 0
+				game.WordTime = time.Now()
 
 				_ = bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 					CallbackQueryID: query.ID,
-					Text:            "🔐 Сенің сөзің: " + currentWord,
+					Text:            "🔐 Сенің сөзің: " + game.CurrentWord,
 					ShowAlert:       true,
 				})
 
 			case "next_word":
-				if query.From.ID != hostID {
+				if userID != game.HostID {
 					bot.SendMessage(ctx, tu.Message(ctxUser, "⛔ Тек жасырушы ғана бұл батырманы баса алады!"))
 					break
 				}
 
-				currentWord = getRandomWord(words)
-				wordTime = time.Now()
+				game.CurrentWord = getRandomWord(words)
+				game.WordTime = time.Now()
 
 				_ = bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 					CallbackQueryID: query.ID,
-					Text:            "🔁 Келесі сөз дайын: " + currentWord,
+					Text:            "🔁 Келесі сөз дайын: " + game.CurrentWord,
 					ShowAlert:       true,
 				})
 
 			case "hide_word":
-				if userID != wordGuesserID && time.Since(wordTime) < 5*time.Second {
+				if userID != game.WordGuesserID && time.Since(game.WordTime) < 5*time.Second {
 					bot.SendMessage(ctx,
 						tu.Message(ctxUser, "⛔ Тек жеңімпаз ғана 5 секунд ішінде баса алады!"))
-				} else {
-					keyboard := tu.InlineKeyboard(
-						tu.InlineKeyboardRow(
-							tu.InlineKeyboardButton("Сөзді көру").WithCallbackData("see_word"),
-							tu.InlineKeyboardButton("Келесі сөз").WithCallbackData("next_word"),
-						),
-					)
-
-					hostMention := "@" + query.From.Username
-					text := "🎮 Келесі раунд басталды! Келесі сөзді " + hostMention + " жасырады"
-
-					bot.SendMessage(ctx,
-						tu.Message(tu.ID(query.Message.GetChat().ID), text).
-							WithReplyMarkup(keyboard),
-					)
+					break
 				}
+
+				keyboard := tu.InlineKeyboard(
+					tu.InlineKeyboardRow(
+						tu.InlineKeyboardButton("Сөзді көру").WithCallbackData("see_word"),
+						tu.InlineKeyboardButton("Келесі сөз").WithCallbackData("next_word"),
+					),
+				)
+
+				hostMention := "@" + query.From.Username
+				text := "🎮 Келесі раунд басталды! Келесі сөзді " + hostMention + " жасырады"
+
+				bot.SendMessage(ctx,
+					tu.Message(tu.ID(chatID), text).
+						WithReplyMarkup(keyboard),
+				)
 			}
 
+			// ✅ Подтверждение нажатия
 			_ = bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 				CallbackQueryID: query.ID,
 			})
