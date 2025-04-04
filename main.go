@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -102,9 +103,9 @@ func main() {
 				game.LastStartTime = time.Now()
 				game.HostID = update.Message.From.ID
 
-				hostUsername := update.Message.From.Username
+				hostName := "[" + update.Message.From.FirstName + "](tg://user?id=" + strconv.FormatInt(update.Message.From.ID, 10) + ")"
 				msg := "👋 Cәлем, балапан! Обед іштің бе? Кел, ойнайық!\n" +
-					"Сөз жасыратын @" + hostUsername
+					"Сөз жасыратын " + hostName
 
 				keyboard := tu.InlineKeyboard(
 					tu.InlineKeyboardRow(
@@ -115,6 +116,7 @@ func main() {
 
 				bot.SendMessage(ctx,
 					tu.Message(tu.ID(chatID), msg).
+						WithParseMode(telego.ModeMarkdown).
 						WithReplyMarkup(keyboard),
 				)
 				continue
@@ -133,7 +135,8 @@ func main() {
 				game.WordTime = time.Now()
 				game.HostID = sender.ID
 
-				msg := "🎉 Жеңімпаз: @" + sender.Username + "\nДұрыс жауап: *" + text + "*"
+				winnerLink := "[" + sender.FirstName + "](tg://user?id=" + strconv.FormatInt(sender.ID, 10) + ")"
+				msg := "🎉 Жеңімпаз: " + winnerLink + "\nДұрыс жауап: *" + text + "*"
 
 				keyboard := tu.InlineKeyboard(
 					tu.InlineKeyboardRow(
@@ -214,11 +217,12 @@ func main() {
 					),
 				)
 
-				hostMention := "@" + query.From.Username
-				text := "🎮 Келесі раунд басталды! Келесі сөзді " + hostMention + " жасырады"
+				hostLink := "[" + query.From.FirstName + "](tg://user?id=" + strconv.FormatInt(query.From.ID, 10) + ")"
+				text := "🎮 Келесі раунд басталды! Келесі сөзді " + hostLink + " жасырады"
 
 				bot.SendMessage(ctx,
 					tu.Message(tu.ID(chatID), text).
+						WithParseMode(telego.ModeMarkdown).
 						WithReplyMarkup(keyboard),
 				)
 			}
