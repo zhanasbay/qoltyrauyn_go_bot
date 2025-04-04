@@ -78,15 +78,19 @@ func main() {
 
 			// 🚀 /start немесе Баста
 			if text == "/start" || text == "Баста" {
-				// ⏱ Проверка: прошло ли 3 минуты
 				if time.Since(game.LastStartTime) < 3*time.Minute {
 					bot.SendMessage(ctx,
-						tu.Message(tu.ID(chatID), "❗ Балапан, жасырылған сөзге минимум 3 минут. Көтеніңді қыса ғой, балапан)"),
+						tu.Message(tu.ID(chatID), "❗ Балапан, жасырылған сөзге минимум 3 минут, көтеніңді қыса ғой, балапан"),
 					)
 					continue
 				}
 
-				game.LastStartTime = time.Now() // обновляем время начала
+				game.LastStartTime = time.Now()
+				game.HostID = update.Message.From.ID
+
+				hostUsername := update.Message.From.Username
+				msg := "👋 Cәлем, балапан! Обед іштің бе? Кел, ойнайық!\n" +
+					"Сөз жасыратын @" + hostUsername
 
 				keyboard := tu.InlineKeyboard(
 					tu.InlineKeyboardRow(
@@ -96,7 +100,7 @@ func main() {
 				)
 
 				bot.SendMessage(ctx,
-					tu.Message(tu.ID(chatID), "👋 Cәлем, балапан! Обед іштің бе? Кел, ойнайық").
+					tu.Message(tu.ID(chatID), msg).
 						WithReplyMarkup(keyboard),
 				)
 				continue
@@ -160,7 +164,7 @@ func main() {
 
 				_ = bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 					CallbackQueryID: query.ID,
-					Text:            "🔐 Сенің сөзің: " + game.CurrentWord,
+					Text:            game.CurrentWord,
 					ShowAlert:       true,
 				})
 
@@ -180,7 +184,7 @@ func main() {
 
 				_ = bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 					CallbackQueryID: query.ID,
-					Text:            "🔁 Келесі сөз дайын: " + game.CurrentWord,
+					Text:            game.CurrentWord,
 					ShowAlert:       true,
 				})
 
