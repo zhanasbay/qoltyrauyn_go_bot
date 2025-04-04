@@ -107,7 +107,8 @@ func main() {
 			}
 
 			// ✅ Проверка правильного ответа
-			if game.CurrentWord != "" && strings.EqualFold(text, game.CurrentWord) {
+			if game.CurrentWord != "" && strings.Contains(strings.ToLower(text), strings.ToLower(game.CurrentWord)) {
+
 				sender := update.Message.From
 
 				if sender.ID == game.HostID {
