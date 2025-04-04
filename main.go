@@ -109,8 +109,8 @@ func main() {
 
 				keyboard := tu.InlineKeyboard(
 					tu.InlineKeyboardRow(
-						tu.InlineKeyboardButton("Сөзді көру").WithCallbackData("see_word"),
-						tu.InlineKeyboardButton("Келесі сөз").WithCallbackData("next_word"),
+						tu.InlineKeyboardButton("Сөзді көру👀").WithCallbackData("see_word"),
+						tu.InlineKeyboardButton("Келесі сөз➡️").WithCallbackData("next_word"),
 					),
 				)
 
@@ -165,19 +165,25 @@ func main() {
 				if game.HostID == 0 {
 					game.HostID = userID
 				}
+
+				// Проверяем, если пользователь не ведущий, то показываем ошибку
 				if userID != game.HostID {
 					_ = bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 						CallbackQueryID: query.ID,
-						Text:            "⛔ Тек жасырушы ғана бұл батырманы баса алады!",
+						Text:            "Балапан ⛔ Ну неге? Тек жасырушы ғана бұл батырманы баса алады!",
 						ShowAlert:       true,
 					})
 					break
 				}
 
-				game.CurrentWord = getRandomWord(words)
-				game.WordGuesserID = 0
-				game.WordTime = time.Now()
+				// Если слово не задано, генерируем новое слово
+				if game.CurrentWord == "" {
+					game.CurrentWord = getRandomWord(words)
+					game.WordGuesserID = 0
+					game.WordTime = time.Now()
+				}
 
+				// Показываем слово ведущему
 				_ = bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 					CallbackQueryID: query.ID,
 					Text:            game.CurrentWord,
@@ -188,12 +194,13 @@ func main() {
 				if userID != game.HostID {
 					_ = bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 						CallbackQueryID: query.ID,
-						Text:            "⛔ Тек жасырушы ғана бұл батырманы баса алады!",
+						Text:            "Балапан ⛔ Ну неге? Тек жасырушы ғана бұл батырманы баса алады!",
 						ShowAlert:       true,
 					})
 					break
 				}
 
+				// Генерируем новое слово для следующего раунда
 				game.CurrentWord = getRandomWord(words)
 				game.WordTime = time.Now()
 
@@ -206,19 +213,19 @@ func main() {
 			case "hide_word":
 				if userID != game.WordGuesserID && time.Since(game.WordTime) < 5*time.Second {
 					bot.SendMessage(ctx,
-						tu.Message(ctxUser, "⛔ Тек жеңімпаз ғана 5 секунд ішінде баса алады!"))
+						tu.Message(ctxUser, "Балапан ⛔ Ну неге? Тек жеңімпаз ғана 5 секунд ішінде баса алады!"))
 					break
 				}
 
 				keyboard := tu.InlineKeyboard(
 					tu.InlineKeyboardRow(
-						tu.InlineKeyboardButton("Сөзді көру").WithCallbackData("see_word"),
-						tu.InlineKeyboardButton("Келесі сөз").WithCallbackData("next_word"),
+						tu.InlineKeyboardButton("Сөзді көру👀").WithCallbackData("see_word"),
+						tu.InlineKeyboardButton("Келесі сөз➡️").WithCallbackData("next_word"),
 					),
 				)
 
 				hostLink := "[" + query.From.FirstName + "](tg://user?id=" + strconv.FormatInt(query.From.ID, 10) + ")"
-				text := "🎮 Келесі раунд басталды! Келесі сөзді " + hostLink + " жасырады"
+				text := "Келесі сөзді " + hostLink + " жасырады"
 
 				bot.SendMessage(ctx,
 					tu.Message(tu.ID(chatID), text).
