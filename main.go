@@ -12,18 +12,18 @@ import (
 	tu "github.com/mymmrac/telego/telegoutil"
 )
 
-// 👥 Структура состояния игры на каждый чат
+// 👥 Состояние игры для каждого чата
 type GameState struct {
 	CurrentWord   string
 	HostID        int64
 	WordGuesserID int64
 	WordTime      time.Time
+	LastStartTime time.Time // 🕒 время последнего /start
 }
 
-// 🌍 Глобальная карта: ключ — chatID, значение — GameState
+// 🌍 Карта: chatID → GameState
 var games = make(map[int64]*GameState)
 
-// 🎯 Получаем или создаём состояние игры для текущего чата
 func getGame(chatID int64) *GameState {
 	if game, ok := games[chatID]; ok {
 		return game
@@ -61,7 +61,7 @@ func main() {
 			chatID := chat.ID
 			game := getGame(chatID)
 
-			// 🔒 Если пишут в личку — предлагаем добавить бота в чат
+			// 📥 Ответ в личке
 			if chat.Type == "private" {
 				button := tu.InlineKeyboard(
 					tu.InlineKeyboardRow(
@@ -76,14 +76,25 @@ func main() {
 				continue
 			}
 
-			// 🚀 Команда /start или "Баста" — начинаем игру
+			// 🚀 /start немесе Баста
 			if text == "/start" || text == "Баста" {
+				// ⏱ Проверка: прошло ли 3 минуты
+				if time.Since(game.LastStartTime) < 3*time.Minute {
+					bot.SendMessage(ctx,
+						tu.Message(tu.ID(chatID), "❗ Балапан, жасырылған сөзге минимум 3 минут. Көтеніңді қыса ғой, балапан)"),
+					)
+					continue
+				}
+
+				game.LastStartTime = time.Now() // обновляем время начала
+
 				keyboard := tu.InlineKeyboard(
 					tu.InlineKeyboardRow(
 						tu.InlineKeyboardButton("Сөзді көру").WithCallbackData("see_word"),
 						tu.InlineKeyboardButton("Келесі сөз").WithCallbackData("next_word"),
 					),
 				)
+
 				bot.SendMessage(ctx,
 					tu.Message(tu.ID(chatID), "👋 Cәлем, балапан! Обед іштің бе? Кел, ойнайық").
 						WithReplyMarkup(keyboard),
@@ -95,15 +106,14 @@ func main() {
 			if game.CurrentWord != "" && strings.EqualFold(text, game.CurrentWord) {
 				sender := update.Message.From
 
-				// ❌ Ведущий не может быть победителем
 				if sender.ID == game.HostID {
-					continue
+					continue // ❌ ведущий не может угадывать
 				}
 
 				game.CurrentWord = ""
 				game.WordGuesserID = sender.ID
 				game.WordTime = time.Now()
-				game.HostID = sender.ID // Победитель — новый ведущий
+				game.HostID = sender.ID
 
 				msg := "🎉 Жеңімпаз: @" + sender.Username + "\nДұрыс жауап: *" + text + "*"
 
@@ -121,24 +131,26 @@ func main() {
 			}
 		}
 
-		// 🎮 Обработка нажатий на кнопки
 		if update.CallbackQuery != nil {
 			query := update.CallbackQuery
 			data := query.Data
 			userID := query.From.ID
 			ctxUser := tu.ID(userID)
-
 			chatID := query.Message.GetChat().ID
 			game := getGame(chatID)
 
 			switch data {
-
 			case "see_word":
 				if game.HostID == 0 {
 					game.HostID = userID
 				}
 				if userID != game.HostID {
-					bot.SendMessage(ctx, tu.Message(ctxUser, "⛔ Тек жасырушы ғана бұл батырманы баса алады!"))
+					_ = bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
+						CallbackQueryID: query.ID,
+						Text:            "⛔ Тек жасырушы ғана бұл батырманы баса алады!",
+						ShowAlert:       true,
+					})
+
 					break
 				}
 
@@ -154,7 +166,12 @@ func main() {
 
 			case "next_word":
 				if userID != game.HostID {
-					bot.SendMessage(ctx, tu.Message(ctxUser, "⛔ Тек жасырушы ғана бұл батырманы баса алады!"))
+					_ = bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
+						CallbackQueryID: query.ID,
+						Text:            "⛔ Тек жасырушы ғана бұл батырманы баса алады!",
+						ShowAlert:       true,
+					})
+
 					break
 				}
 
@@ -190,7 +207,6 @@ func main() {
 				)
 			}
 
-			// ✅ Подтверждение нажатия
 			_ = bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 				CallbackQueryID: query.ID,
 			})
