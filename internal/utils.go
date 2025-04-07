@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"bufio"
@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-// loadWordsFromFile загружает слова из текстового файла (по одному на строку)
-func loadWordsFromFile(filename string) []string {
+// LoadWordsFromFile загружает слова из текстового файла (по одному на строку)
+func LoadWordsFromFile(filename string) []string {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatal("❌ Failed to open words file:", err)
@@ -33,8 +33,8 @@ func loadWordsFromFile(filename string) []string {
 	return words
 }
 
-// getRandomWord возвращает случайное слово из списка
-func getRandomWord(words []string) string {
+// GetRandomWord возвращает случайное слово из списка
+func GetRandomWord(words []string) string {
 	rand.Seed(time.Now().UnixNano())
 	return words[rand.Intn(len(words))]
 }
