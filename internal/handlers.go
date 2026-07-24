@@ -55,7 +55,7 @@ func handleMessage(bot *telego.Bot, ctx context.Context, update telego.Update) {
 			bot.SendMessage(ctx, tu.Message(tu.ID(chatID), "Бұл чатта әлі жеңімпаздар жоқ."))
 			return
 		}
-		msg := "🏆 *ТОП жеңімпаздар (осы чат):*\n\n"
+		msg := "🏆 *ТОП-жеңімпаздар (осы чат):*\n\n"
 		for i, player := range top {
 			line := strconv.Itoa(i+1) + ". [" + player.Username + "](tg://user?id=" + strconv.FormatInt(player.UserID, 10) + ") – " + strconv.Itoa(player.ChatWins) + " жеңіс\n"
 			msg += line
@@ -69,7 +69,7 @@ func handleMessage(bot *telego.Bot, ctx context.Context, update telego.Update) {
 			bot.SendMessage(ctx, tu.Message(tu.ID(chatID), "Жалпы рейтингте ешкім жеңбеген."))
 			return
 		}
-		msg := "🌐 *Жалпы ТОП жеңімпаздар:*\n\n"
+		msg := "🌐 *Жалпы ТОП-жеңімпаздар:*\n\n"
 		for i, player := range top {
 			line := strconv.Itoa(i+1) + ". [" + player.Username + "](tg://user?id=" + strconv.FormatInt(player.UserID, 10) + ") – " + strconv.Itoa(player.TotalWins) + " жеңіс\n"
 			msg += line
